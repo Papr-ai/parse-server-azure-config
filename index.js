@@ -25,7 +25,7 @@ module.exports = (siteRoot, options) => {
     databaseURI: process.env.DATABASE_URI || 'mongodb://localhost:27017/dev',
     serverURL: (process.env.SERVER_URL || 'http://localhost:1337') + '/parse',
     cloud: siteRoot + '/cloud/main.js',
-    logFolder: siteRoot + '/logs',
+    // removed logFolder: siteRoot + '/logs',
     filesAdapter: () => {
       if (validate('storage', ['name', 'container', 'accessKey']))
         return new AzureStorageAdapter(storage.name, storage.container, storage);

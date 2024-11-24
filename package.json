@@ -1,18 +1,22 @@
 {
-  "name": "parse-server-azure-config",
-  "version": "0.0.3",
-  "description": "A module to generate configuration for your parse server on azure",
+  "name": "@shawkatkabbara/parse-server-azure-config",
+  "version": "1.0.0",
+  "description": "A module to generate configuration for parse server on azure",
   "main": "index.js",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Matt Mason",
   "license": "MIT",
   "dependencies": {
-    "parse-server": "^2.2.8",
-    "parse-dashboard": "^1.0.11",
-    "parse-server-azure-push": "^1.0.2",
-    "parse-server-azure-storage": "^1.0.3"
+    "@shawkatkabbara/parse-server-azure-push": "^1.0.3",
+    "@shawkatkabbara/parse-server-azure-storage": "^1.1.1"
   },
-  "repository": "https://github.com/mamaso/parse-server-azure-config.git"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/shawkatkabbara/parse-server-azure-config.git"
+  }
 }
