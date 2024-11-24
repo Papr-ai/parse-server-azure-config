@@ -1,6 +1,6 @@
 {
   "name": "@shawkatkabbara/parse-server-azure-config",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A module to generate configuration for parse server on azure",
   "main": "index.js",
   "publishConfig": {
