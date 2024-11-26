@@ -1,112 +1,102 @@
-var AzurePushAdapter = require('parse-server-azure-push');
-var AzureStorageAdapter = require('parse-server-azure-storage').AzureStorageAdapter;
-var DefaultFilesAdapter = require('parse-server/lib/Adapters/Files/FilesAdapter').FilesAdapter;
-var DefaultPushAdapter = require('parse-server/lib/Adapters/Push/PushAdapter').PushAdapter;
-var util = require('util');
+const path = require('path');
+const AzurePushAdapter = require('@shawkatkabbara/parse-server-azure-push');
+const { AzureStorageAdapter } = require('@shawkatkabbara/parse-server-azure-storage');
+const { FilesAdapter: DefaultFilesAdapter } = require('parse-server/lib/Adapters/Files/FilesAdapter');
+const { PushAdapter: DefaultPushAdapter } = require('parse-server/lib/Adapters/Push/PushAdapter');
+const util = require('util');
 
 module.exports = (siteRoot, options) => {
   options = options || {};
 
-  var push = {
-    HubName: process.env.MS_NotificationHubName || (process.env.WEBSITE_SITE_NAME? process.env.WEBSITE_SITE_NAME + '-hub' : undefined),
+  const pushConfig = {
+    HubName: process.env.MS_NotificationHubName || (process.env.WEBSITE_SITE_NAME ? `${process.env.WEBSITE_SITE_NAME}-hub` : undefined),
     ConnectionString: process.env.CUSTOMCONNSTR_MS_NotificationHubConnectionString
   };
 
-  var storage = {
+  const storageConfig = {
     name: process.env.STORAGE_NAME,
     container: process.env.STORAGE_CONTAINER || 'parse',
     accessKey: process.env.STORAGE_KEY,
     directAccess: true
   };
 
-  var server = {
+  const serverConfig = {
     appId: process.env.APP_ID || 'appId',
     masterKey: process.env.MASTER_KEY || 'masterKey',
     databaseURI: process.env.DATABASE_URI || 'mongodb://localhost:27017/dev',
-    serverURL: (process.env.SERVER_URL || 'http://localhost:1337') + '/parse',
-    cloud: siteRoot + '/cloud/main.js',
-    // removed logFolder: siteRoot + '/logs',
+    serverURL: `${process.env.SERVER_URL || 'http://localhost:1337'}/parse`,
+    cloud: path.join(siteRoot, 'cloud', 'main.js'),
     filesAdapter: () => {
-      if (validate('storage', ['name', 'container', 'accessKey']))
-        return new AzureStorageAdapter(storage.name, storage.container, storage);
-      else {
+      if (validate(storageConfig, ['name', 'container', 'accessKey'])) {
+        return new AzureStorageAdapter(
+          storageConfig.name,
+          storageConfig.container,
+          {
+            accessKey: storageConfig.accessKey,
+            directAccess: storageConfig.directAccess
+          }
+        );
+      } else {
         return new DefaultFilesAdapter();
       }
     },
     push: { 
       adapter: () => {
-        if (validate('push', ['HubName', 'ConnectionString']))
-          return AzurePushAdapter(push);
-        else {
+        if (validate(pushConfig, ['HubName', 'ConnectionString'])) {
+          return new AzurePushAdapter({
+            HubName: pushConfig.HubName,
+            ConnectionString: pushConfig.ConnectionString
+          });
+        } else {
           return new DefaultPushAdapter();
-        } 
+        }
       }
-    },
-    allowClientClassCreation: false,
-    enableAnonymousUsers: false
+    }
   };
 
-  var dashboard = {
+  // Initialize dashboard users map
+  const dashboardUsers = new Map();
+  // It's better to avoid hardcoding users. Consider using environment variables or a secure method.
+  // Here's an example of adding a single user. Modify as needed.
+  dashboardUsers.set(serverConfig.appId, serverConfig.masterKey);
+
+  const dashboardConfig = {
     apps: [
       {
-        appId: server.appId,
-        serverURL: server.serverURL,
-        masterKey: server.masterKey,
+        appId: serverConfig.appId,
+        serverURL: serverConfig.serverURL,
+        masterKey: serverConfig.masterKey,
         appName: process.env.WEBSITE_SITE_NAME || 'Parse Server Azure'
       }
     ],
-    users: [
-      {
-        user: server.appId,
-        pass: server.masterKey
-      }
-    ]
+    users: Array.from(dashboardUsers, ([user, pass]) => ({ user, pass }))
   };
 
-  loadConfigFile(options.config || 'config.js');
-  loadConfigFile(options.local || 'local.js');
-
-  var api = {
-    server: server,
-    dashboard: dashboard,
-    push: push,
-    storage: storage
+  const apiConfig = {
+    server: serverConfig,
+    dashboard: dashboardConfig,
+    push: pushConfig,
+    storage: storageConfig
   };
 
   console.log('parse-server-azure-config generated the following configuration:');
-  console.log(util.inspect(api, { showHidden: false, depth: 4 }))
+  console.log(util.inspect(apiConfig, { showHidden: false, depth: 4 }));
 
-  return api;
+  return apiConfig;
 
-  function validate(configName, props) {
-    var valid = props.reduce((configValid, prop) => {
-      if (!api[configName][prop]) 
-        console.log(`Missing required property '${prop}' in ${configName} configuration`);
-      return configValid && api[configName][prop];
-    }, true);
-
-    if (!valid) 
-      console.log(`Will not setup parse-server-azure-${configName} due to invalid configuration`);
-    return valid;
+  /**
+   * Validates that the required properties are present in the given config object.
+   * @param {Object} config - The configuration object to validate.
+   * @param {Array<String>} props - The list of required properties.
+   * @returns {Boolean} - Returns true if all properties are present, else false.
+   */
+  function validate(config, props) {
+    return props.every(prop => {
+      if (!config[prop]) {
+        console.log(`Missing required property '${prop}' in configuration`);
+        return false;
+      }
+      return true;
+    });
   }
-
-  function loadConfigFile(filename) {
-    try {
-      var config = require(`${siteRoot}/${filename}`);
-
-      Object.assign(server, config.server);
-      Object.assign(push, config.push);
-      Object.assign(storage, config.storage);
-
-      // concat apps and users
-      Object.keys(dashboard).forEach((key) => {
-        var val = config && config.dashboard && config.dashboard[key];
-        if (val)
-          dashboard[key] = dashboard[key].concat(val);
-      });
-    } catch (err) { 
-      console.error(err);
-      console.log(`Couldn't load configuration from ${siteRoot}/${filename}`) 
-    }
-  }
-}
+};
